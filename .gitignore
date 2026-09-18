@@ -1,0 +1,7 @@
+/build/
+/data/
+.gradle/
+*.wav
+worker/pretrained_models/
+worker/.env
+__pycache__/
