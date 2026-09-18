@@ -1,0 +1,14 @@
+# The worker itself needs nothing beyond the standard library; everything here
+# is FireRedTTS3's own dependency surface.
+#
+# Install FireRedTTS3 from its repository rather than pinning it here, because
+# its licensing is still unresolved (docs/DECISIONS.md D-010) and vendoring it
+# would imply a decision that has not been made:
+#
+#   git clone https://github.com/FireRedTeam/FireRedTTS3.git
+#   pip install -r FireRedTTS3/requirements.txt
+#   hf download FireRedTeam/FireRedTTS3 --local-dir pretrained_models/
+#
+# Pin torch to whatever matches the CUDA version on the target host.
+torch>=2.4
+torchaudio>=2.4

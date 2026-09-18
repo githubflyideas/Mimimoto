@@ -1,0 +1,7 @@
+/data/
+/mimimotod
+/mimimoto-qc
+*.wav
+worker/pretrained_models/
+worker/.env
+__pycache__/
