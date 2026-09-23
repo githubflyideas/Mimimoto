@@ -15,14 +15,19 @@ import java.time.Duration
 import java.util.Base64
 
 /**
- * Talks to the Python worker in worker/, which wraps FireRedTTS3.
+ * Talks to the Python worker in worker/, which wraps CosyVoice 2.
  *
  * The wire format is deliberately dull: one JSON request, one JSON response
  * with base64 audio. Segments are short, so simplicity is worth more than
  * streaming would be — the streaming that matters happens a level up, between
  * segments (D-009).
+ *
+ * Note how little of this file changed when the engine did: the client speaks
+ * our own worker protocol, so the model swap was confined to the worker and to
+ * [languages]. That is the whole return on putting synthesis behind an
+ * interface, and it paid for itself the first time it was needed (D-015).
  */
-class FireRed(
+class CosyVoice2(
     private val baseUrl: String,
     /** Reported in results when the worker does not supply its own. */
     private val version: String = "",
@@ -34,11 +39,22 @@ class FireRed(
     private val timeout: Duration = Duration.ofSeconds(60),
 ) : Synthesizer {
 
-    override val name = "firered-tts3"
+    override val name = "cosyvoice2"
+
+    /**
+     * CosyVoice 2's coverage: Mandarin (with its dialects), Cantonese, English,
+     * Japanese, Korean.
+     *
+     * Far narrower than the twelve languages this product once planned for, and
+     * that is a product fact rather than a technical detail — the markets this
+     * engine cannot serve are the ones the launch has to leave out for now
+     * (D-015).
+     */
+    override val languages: Set<String> = setOf("zh", "yue", "en", "ja", "ko")
 
     override fun synthesize(request: Request): Result {
         request.validate()
-        val language = primaryLanguage(request.language)
+        val language = primaryLanguage(request.language, languages)
 
         val body = jsonOf(
             "text" to request.text,

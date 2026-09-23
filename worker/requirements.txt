@@ -1,13 +1,19 @@
 # The worker itself needs nothing beyond the standard library; everything here
-# is FireRedTTS3's own dependency surface.
+# is CosyVoice 2's own dependency surface.
 #
-# Install FireRedTTS3 from its repository rather than pinning it here, because
-# its licensing is still unresolved (docs/DECISIONS.md D-010) and vendoring it
-# would imply a decision that has not been made:
+# Install CosyVoice from its repository rather than pinning it here — it is not
+# published to PyPI, and it needs its Matcha-TTS submodule on PYTHONPATH:
 #
-#   git clone https://github.com/FireRedTeam/FireRedTTS3.git
-#   pip install -r FireRedTTS3/requirements.txt
-#   hf download FireRedTeam/FireRedTTS3 --local-dir pretrained_models/
+#   git clone --recursive https://github.com/FunAudioLLM/CosyVoice.git
+#   pip install -r CosyVoice/requirements.txt
+#   export PYTHONPATH="$PWD/CosyVoice:$PWD/CosyVoice/third_party/Matcha-TTS"
+#
+#   pip install modelscope
+#   modelscope download --model iic/CosyVoice2-0.5B \
+#       --local_dir pretrained_models/CosyVoice2-0.5B
+#
+# Apache-2.0, commercial use permitted, no carve-out on the cloning feature —
+# which is why it replaced FireRedTTS3. See docs/DECISIONS.md D-015.
 #
 # Pin torch to whatever matches the CUDA version on the target host.
 torch>=2.4

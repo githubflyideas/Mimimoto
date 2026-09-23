@@ -91,6 +91,16 @@ interface Synthesizer {
 
     /** Identifies the backend in logs and metrics. */
     val name: String
+
+    /**
+     * The primary subtags this engine can speak.
+     *
+     * Exposed on the interface so the rest of the system asks the engine rather
+     * than consulting a list that outlives it — the set shrank by two thirds
+     * when the engine changed (docs/DECISIONS.md D-015), and nothing should
+     * have to be remembered for that to be true.
+     */
+    val languages: Set<String>
 }
 
 /** True when retrying [e] cannot possibly help. */
@@ -100,25 +110,19 @@ fun isTerminal(e: Throwable): Boolean =
         e is InterruptedException
 
 /**
- * The languages FireRedTTS3 handles, which is the set the product may
- * advertise. Here rather than in config because shipping a language the engine
- * cannot speak is a support incident, not a setting.
- */
-val SUPPORTED: Set<String> = setOf(
-    "ar", "cs", "de", "el", "en", "es", "fi", "fr", "hi", "id",
-    "it", "ja", "ko", "nl", "pl", "pt", "ro", "ru", "th", "tr",
-    "uk", "vi", "yue", "zh",
-)
-
-/**
- * Resolves a BCP-47 tag to the engine's primary subtag, matching on the primary
- * subtag so "pt-BR" and "zh-Hans" resolve correctly.
+ * Resolves a BCP-47 tag to a primary subtag the engine accepts, matching on the
+ * primary subtag so "pt-BR" and "zh-Hans" resolve correctly.
+ *
+ * The set belongs to the engine, not to this file: which languages exist is a
+ * property of whichever model is loaded, and swapping engines changes it. A
+ * global list would go stale silently, and shipping a language the engine
+ * cannot speak is a support incident rather than a setting.
  *
  * @throws UnsupportedLanguageException if the engine cannot speak it.
  */
-fun primaryLanguage(tag: String): String {
+fun primaryLanguage(tag: String, supported: Set<String>): String {
     val primary = tag.substringBefore('-').substringBefore('_').lowercase()
-    if (primary !in SUPPORTED) throw UnsupportedLanguageException(tag)
+    if (primary !in supported) throw UnsupportedLanguageException(tag)
     return primary
 }
 

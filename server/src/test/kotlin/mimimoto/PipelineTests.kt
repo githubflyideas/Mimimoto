@@ -54,6 +54,7 @@ private class ClockAdvancing(
     private val perCall: Duration,
 ) : Synthesizer {
     override val name get() = inner.name
+    override val languages get() = inner.languages
     override fun synthesize(request: Request): Result {
         clock.advance(perCall)
         return inner.synthesize(request)
@@ -117,6 +118,7 @@ fun pipelineTests() = Suite.group("pipeline") {
         val flaky = object : Synthesizer {
             val inner = MockSynthesizer()
             override val name = "flaky"
+            override val languages get() = inner.languages
             override fun synthesize(request: Request): Result {
                 if (request.text == target && ++calls <= 2) {
                     throw TransientSynthesisException("gpu busy")

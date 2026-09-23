@@ -31,7 +31,7 @@
 | `core/audioqc` | ✅ 完整，15 项测试。纯 Kotlin，服务端与 App 共用同一份 |
 | `server/schedule` | ✅ 完整，20 项测试。6 时区整年 DST 遍历 |
 | `server/pipeline` | ✅ 完整，12 项测试 |
-| `server/tts` | ✅ 接口 + FireRedTTS3 客户端 + mock |
+| `server/tts` | ✅ 接口 + CosyVoice 2 客户端 + mock |
 | `core/json` | ✅ 内置最小实现，6 项测试 |
 | `server/httpapi` | ⚠️ 仅覆盖已存在的流程，8 项集成测试（真实 socket） |
 | `server/store` | ⚠️ 内存实现。存储形态是未决问题，见 DECISIONS |
@@ -124,7 +124,7 @@ $ ./gradlew :android:assembleDebug                         # APK（需 Android S
 $ KOTLINC=/path/to/kotlinc/bin/kotlinc ./scripts/build.sh
 ```
 
-TTS worker 需要 GPU 和 FireRedTTS3，见 `worker/` 注释。
+TTS worker 需要 GPU 和 CosyVoice 2，装法见 `worker/requirements.txt` 顶部。
 
 ## 红线
 
@@ -142,8 +142,8 @@ TTS worker 需要 GPU 和 FireRedTTS3，见 `worker/` 注释。
 
 - **声纹存哪**。服务端集中存储是 GPU 调度的前提，但等于持有一个泄露后无法重置的高价值资产。
   方向是每家独立密钥 + 原始录音短期销毁 + 长期只留 embedding。**在验证孩子买不买账之前属于过早优化。**
-- **FireRedTTS3 的商用许可**。仓库是 Apache-2.0，model card 写的是仅供学术研究。两者矛盾，
-  商用前必须书面解决。
-- 首发市场收窄，以及已故父母声音的伦理立场。
+- **首发打哪个市场**。引擎（CosyVoice 2）支持中日英韩粤，泰越葡西暂时做不了——
+  移工输出国那条线要等换引擎或解决许可，见 D-015。
+- 已故父母声音的伦理立场。产品一定会被这样使用，主动做还是明确禁止，出事之前定。
 
 详见 `docs/DECISIONS.md`。

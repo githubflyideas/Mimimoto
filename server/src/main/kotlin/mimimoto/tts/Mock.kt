@@ -26,6 +26,14 @@ class MockSynthesizer(
 
     override val name = "mock"
 
+    /**
+     * Matches the real engine's coverage rather than accepting everything, so a
+     * test that passes here would also pass in production. A mock that is more
+     * permissive than the thing it stands in for hides exactly the failures it
+     * is there to catch.
+     */
+    override val languages: Set<String> = setOf("zh", "yue", "en", "ja", "ko")
+
     private val recorded = Collections.synchronizedList(mutableListOf<Request>())
 
     /** A snapshot of the requests seen so far. */
@@ -35,7 +43,7 @@ class MockSynthesizer(
 
     override fun synthesize(request: Request): Result {
         request.validate()
-        primaryLanguage(request.language) // throws for an unsupported tag
+        primaryLanguage(request.language, languages) // throws for an unsupported tag
         recorded += request
 
         if (!latency.isZero) Thread.sleep(latency.toMillis())
