@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      RECORD_AUDIO is the only permission this app asks for.
+
+      There is deliberately no INTERNET permission yet: the pilot build measures
+      recordings on the device and nothing leaves it. When upload is added, that
+      is the moment to decide what leaves and to say so in the UI — not a line
+      slipped in ahead of the feature.
+
+      The child's device runs a different screen of this same app and never asks
+      for RECORD_AUDIO at all (docs/DECISIONS.md D-003).
+    -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <uses-feature android:name="android.hardware.microphone" android:required="true" />
+
+    <application
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Mimimoto">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.Mimimoto">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+    </application>
+
+</manifest>

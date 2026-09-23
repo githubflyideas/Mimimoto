@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      A platform theme, not a Material Components one: the UI is Compose, so
+      pulling in the view-based material library would add a dependency that
+      nothing draws with.
+    -->
+    <style name="Theme.Mimimoto" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@color/cream</item>
+        <item name="android:navigationBarColor">@color/cream</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowBackground">@color/cream</item>
+    </style>
+</resources>

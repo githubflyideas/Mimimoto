@@ -40,21 +40,43 @@ internal fun synth(o: SigOpts): Audio {
     val nyquist = o.rate / 2.0
     val top = min(o.maxHarmHz, nyquist * 0.98)
     val nHarm = maxOf((top / o.f0).toInt(), 1)
-    val period = o.pauseEvery + o.pauseLen
+    val cycle = o.pauseEvery + o.pauseLen
+
+    // Every harmonic is a multiple of f0, so the carrier repeats every
+    // rate/f0 samples. Where that divides exactly, one period is computed and
+    // tiled — the signal is identical and the sine calls drop by two orders of
+    // magnitude, which is the difference between a suite that runs in a second
+    // and one nobody waits for. Where it does not divide (the 8 kHz case), the
+    // splice would inject broadband energy at every seam and corrupt the very
+    // spectrum under test, so that one is built the slow way.
+    val exactPeriod = if (o.rate % o.f0.toInt() == 0) o.rate / o.f0.toInt() else 0
+    val carrier: DoubleArray? = if (exactPeriod > 0) DoubleArray(exactPeriod).also { c ->
+        for (h in 1..nHarm) {
+            val f = o.f0 * h
+            var a = 1.0 / h
+            if (f > 500 && f < 1000) a *= 2 // crude formant bump
+            val w = 2 * PI * f / o.rate
+            for (i in 0 until exactPeriod) c[i] += a * sin(w * i + h)
+        }
+    } else null
 
     for (i in 0 until n) {
         val t = i.toDouble() / o.rate
-        val speaking = period <= 0 || (t % period) <= o.pauseEvery
+        val speaking = cycle <= 0 || (t % cycle) <= o.pauseEvery
         // Syllable-rate modulation keeps frame energies varied as real speech does.
         val env = 0.6 + 0.4 * sin(2 * PI * 4 * t)
 
         var v = 0.0
         if (speaking) {
-            for (h in 1..nHarm) {
-                val f = o.f0 * h
-                var a = 1.0 / h
-                if (f > 500 && f < 1000) a *= 2 // crude formant bump
-                v += a * sin(2 * PI * f * t + h)
+            v = carrier?.get(i % exactPeriod) ?: run {
+                var s = 0.0
+                for (h in 1..nHarm) {
+                    val f = o.f0 * h
+                    var a = 1.0 / h
+                    if (f > 500 && f < 1000) a *= 2
+                    s += a * sin(2 * PI * f * t + h)
+                }
+                s
             }
             v *= o.amp * env / 3
         }

@@ -83,23 +83,57 @@ class Api(
 
     private fun handle(ex: HttpExchange, method: String, body: () -> Pair<Int, Json>) {
         try {
-            if (ex.requestMethod != method) {
-                respond(ex, 405, jsonOf("error" to "method not allowed"))
-                return
+            val result: Pair<Int, Json> = try {
+                if (ex.requestMethod != method) {
+                    405 to jsonOf("error" to "method not allowed")
+                } else {
+                    body()
+                }
+            } catch (e: NotFoundException) {
+                404 to jsonOf("error" to (e.message ?: "not found"))
+            } catch (e: IllegalArgumentException) {
+                400 to jsonOf("error" to (e.message ?: "bad request"))
+            } catch (e: ScheduleException) {
+                422 to jsonOf("error" to (e.message ?: "cannot schedule"))
+            } catch (e: Exception) {
+                log.warning("request failed: ${e.message}")
+                500 to jsonOf("error" to "internal error")
             }
-            val (code, payload) = body()
-            respond(ex, code, payload)
-        } catch (e: NotFoundException) {
-            respond(ex, 404, jsonOf("error" to (e.message ?: "not found")))
-        } catch (e: IllegalArgumentException) {
-            respond(ex, 400, jsonOf("error" to (e.message ?: "bad request")))
-        } catch (e: ScheduleException) {
-            respond(ex, 422, jsonOf("error" to (e.message ?: "cannot schedule")))
+
+            // Always drain before responding.
+            //
+            // Every early return above — a missing transcript, an unknown voice,
+            // the wrong method — happens before the handler has read the upload,
+            // and replying while megabytes are still in flight leaves the
+            // connection unusable: the client's next request on it dies with
+            // "header parser received no bytes". That is a stalled upload on a
+            // phone, not just a failed unit test, and it only shows up under
+            // connection reuse, which is exactly what a mobile client does.
+            drain(ex)
+            respond(ex, result.first, result.second)
         } catch (e: Exception) {
-            log.warning("request failed: ${e.message}")
-            respond(ex, 500, jsonOf("error" to "internal error"))
+            log.warning("failed to respond: ${e.message}")
         } finally {
             ex.close()
+        }
+    }
+
+    /** Consumes whatever the handler left unread, so the connection stays reusable. */
+    private fun drain(ex: HttpExchange) {
+        try {
+            val body = ex.requestBody
+            val scratch = ByteArray(16 * 1024)
+            var total = 0L
+            while (true) {
+                val n = body.read(scratch)
+                if (n < 0) break
+                total += n
+                // A client that keeps sending after we have decided to refuse
+                // does not get to hold a thread forever.
+                if (total > maxUpload) break
+            }
+        } catch (_: Exception) {
+            // The peer may have gone already; nothing here is worth failing on.
         }
     }
 

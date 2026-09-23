@@ -1,0 +1,55 @@
+name: build
+
+# Produces an installable APK on every push.
+#
+# This exists because the APK is the point: a debug build is signed with the
+# auto-generated debug keystore, so no secrets are configured and anyone who can
+# see the run can download and install the result. A release build needs a real
+# keystore, which is the project owner's to create — see docs/RELEASING.md.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # The server side first: it is where the logic lives, and a red suite
+      # should stop the APK before anyone installs it.
+      - name: Server suite
+        run: ./gradlew :server:suite
+
+      # ANDROID_HOME is set on this runner, so settings.gradle.kts includes
+      # :android. On a machine without an SDK the module is skipped and the
+      # step above still runs.
+      - name: Assemble debug APK
+        run: ./gradlew :android:assembleDebug
+
+      - name: Name the APK by commit
+        run: |
+          mkdir -p dist
+          cp android/build/outputs/apk/debug/*.apk \
+             "dist/mimimoto-${GITHUB_SHA::7}-debug.apk"
+          ls -la dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mimimoto-debug-apk
+          path: dist/*.apk
+          if-no-files-found: error
+          retention-days: 30

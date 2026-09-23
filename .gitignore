@@ -5,3 +5,8 @@
 worker/pretrained_models/
 worker/.env
 __pycache__/
+local.properties
+/dist/
+.idea/
+*.jks
+*.keystore

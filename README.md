@@ -28,18 +28,24 @@
 
 | 模块 | 状态 |
 |---|---|
-| `audioqc` | ✅ 完整，15 项测试 |
-| `schedule` | ✅ 完整，20 项测试。6 时区整年 DST 遍历 |
-| `pipeline` | ✅ 完整，12 项测试 |
-| `tts` | ✅ 接口 + FireRedTTS3 客户端 + mock |
-| `json` | ✅ 内置最小实现，6 项测试 |
-| `httpapi` | ⚠️ 仅覆盖已存在的流程，8 项集成测试（真实 socket） |
-| `store` | ⚠️ 内存实现。存储形态是未决问题，见 DECISIONS |
+| `core/audioqc` | ✅ 完整，15 项测试。纯 Kotlin，服务端与 App 共用同一份 |
+| `server/schedule` | ✅ 完整，20 项测试。6 时区整年 DST 遍历 |
+| `server/pipeline` | ✅ 完整，12 项测试 |
+| `server/tts` | ✅ 接口 + FireRedTTS3 客户端 + mock |
+| `core/json` | ✅ 内置最小实现，6 项测试 |
+| `server/httpapi` | ⚠️ 仅覆盖已存在的流程，8 项集成测试（真实 socket） |
+| `server/store` | ⚠️ 内存实现。存储形态是未决问题，见 DECISIONS |
+| `android/` | ⚠️ 录音+门禁跑通，界面是最小实现。`PcmRecorder` 已对桩编译验证，其余靠 CI |
 | `worker/` | ⚠️ 骨架，未在 GPU 上验证过 |
-| 客户端 | ❌ 未开始 |
+| iOS | ❌ 未开始，见 docs/RELEASING.md |
 
-Kotlin / JDK 21。**运行时零依赖**——`java.time`、`javax.sound.sampled`、`java.net.http`、
-`com.sun.net.httpserver` 全在 JDK 里，JSON 是仓库内 300 行而不是一个要跟版本的依赖。
+Kotlin / JDK 17+。服务端**运行时零依赖**——`java.time`、`java.net.http`、
+`com.sun.net.httpserver` 全在 JDK 里，WAV 解码和 JSON 都是仓库内的实现，
+不是要跟版本的依赖。安卓端只加 Compose。
+
+`core` 不碰任何 JVM 桌面 API，所以**服务端和手机跑的是同一份门禁代码**。
+这不是洁癖：家长被 App 判「重录」、同一条录音却被服务端接受，就是我们自相矛盾被用户抓到。
+一份实现让这件事不可能发生，而不只是不太可能。
 
 ## 两个核心模块
 
@@ -60,7 +66,7 @@ Kotlin / JDK 21。**运行时零依赖**——`java.time`、`javax.sound.sampled
 防止后续改动悄悄把三类糊到一起。另测 SNR、削波（只算连续段，孤立峰值不算）、有效语音时长、DC 偏置。
 
 ```console
-$ ./gradlew qc -Pargs="--profile enrolment dad.wav"
+$ ./gradlew :server:qc -Pargs="--profile enrolment dad.wav"
 dad.wav                                  FAIL
   48000 Hz / 16-bit / 1 ch, 30.0s (23.3s speech, 78%)
   SNR 65.2 dB   cutoff 3492 Hz   clipping 0.00%
@@ -93,14 +99,24 @@ dad.wav                                  FAIL
 `Plan.startGenerationAt` 是 GPU 队列的全部调度策略：按它排序即可。
 12 语言 × 全球时区意味着睡前高峰在 UTC 上滚动一整圈，按 deadline 排序会自动填谷。
 
+## 拿到 APK
+
+推一次代码，CI 自动出包，在 **Actions → Artifacts** 下载安装。用 debug keystore
+自动签名，不需要配任何密钥。细节和正式版签名见 `docs/RELEASING.md`。
+
+IPA 需要 macOS + Xcode + 你自己的 Apple 开发者证书，而且还需要一个 iOS 客户端——
+同样见 `docs/RELEASING.md`，里面写了两条路和推荐哪条。
+
 ## 构建
 
 ```console
-$ ./gradlew build test
-$ ./gradlew suite                                  # 测试套件
-$ ./gradlew qc -Pargs="--json recordings/*.wav"    # 质量门禁
-$ ./gradlew run                                    # 服务
+$ ./gradlew :server:suite                                  # 测试套件
+$ ./gradlew :server:qc -Pargs="--json recordings/*.wav"    # 质量门禁
+$ ./gradlew :server:run                                    # 服务
+$ ./gradlew :android:assembleDebug                         # APK（需 Android SDK）
 ```
+
+没有 Android SDK 的机器上 `:android` 会被自动跳过，服务端照常构建。
 
 构建主机连不上 Maven 时，用 kotlinc 直接编译（项目零依赖、测试用仓库内 runner，所以这条路是通的）：
 

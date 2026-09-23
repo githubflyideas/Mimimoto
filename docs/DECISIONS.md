@@ -75,7 +75,7 @@
 
 激励靠**开场白的稀缺性**，不靠断供。另设库存池：出差前一次录 7 条排进队列。
 
-见 `internal/schedule`：`Tier` 与 `Plan`。
+见 `server/src/main/kotlin/mimimoto/schedule/`：`Tier` 与 `Plan`。
 
 ---
 
@@ -88,7 +88,7 @@
 
 **为什么**：一旦占住"每晚 8:30"，它就是家庭仪式，别人极难替换——这是真资产。代价是送达失败变成高严重度事故。
 
-见 `internal/schedule/schedule.go`：`resolveWallClock`。
+见 `server/.../schedule/WallClock.kt`：`resolveWallClock`。
 
 ---
 
@@ -96,7 +96,7 @@
 
 生成失败 → 静默回退到昨天的 / 库存故事。孩子的 20:30 不能空。
 
-见 `schedule.Plan.Fallbacks`。
+见 `schedule.Plan.fallbacks` 与 `Plan` 的构造：任何输入都产出可播放的计划，否则抛异常。
 
 ---
 
@@ -108,7 +108,7 @@
 
 代价：段间韵律连续性（同一 prompt audio + 上一段尾部做条件），以及段级失败回退。
 
-见 `internal/pipeline`。
+见 `server/.../pipeline/Pipeline.kt`。
 
 ---
 
@@ -122,7 +122,7 @@ MiniMax-MLS-Test 上多语言平均说话人相似度 84.8%、平均 WER 3.754%�
 
 ⚠️ **未决法务风险**：仓库协议是 Apache-2.0，但 model card 的 Usage Disclaimer 写明声音克隆功能"intended solely for academic research purposes"。两者互相矛盾。商用前必须取得作者书面许可或律师定性。**不要默认 Apache-2.0 就万事大吉。**
 
-适配层 `internal/tts` 保持可替换，不把 FireRedTTS3 焊死。
+适配层 `server/.../tts/` 保持可替换，不把 FireRedTTS3 焊死。
 
 ---
 
@@ -157,11 +157,33 @@ MiniMax-MLS-Test 上多语言平均说话人相似度 84.8%、平均 WER 3.754%�
 
 放弃的 Go 优势是单静态二进制和更低的内存基线（JVM 约 200–500MB vs Go 约 20MB）。在按量付费的推理集群旁边这是真钱，但服务端大部分时间在等 GPU worker，不是瓶颈。
 
-**运行时零依赖**是从 Go 版保留下来的约束，且在 JVM 上同样成立：`java.time`、`javax.sound.sampled`（WAV 解码）、`java.net.http`、`com.sun.net.httpserver` 全在 JDK 里；JSON 是仓库内约 300 行，而不是一个要跟版本的依赖。测试用仓库内 runner 而非 JUnit，这样连不上 Maven 的构建主机也能跑全量测试（`scripts/build.sh`）。若 API 面扩大到这个交易不划算，换 kotlinx-serialization 是改一个包。
+**运行时零依赖**是从 Go 版保留下来的约束，且在 JVM 上同样成立：`java.time`、`java.net.http`、`com.sun.net.httpserver` 全在 JDK 里；WAV 解码和 JSON 都是仓库内的实现（WAV 解码后来从 `javax.sound.sampled` 改为手写，正是为了让同一份 `core` 能在安卓上编译——见 D-014），而不是一个要跟版本的依赖。测试用仓库内 runner 而非 JUnit，这样连不上 Maven 的构建主机也能跑全量测试（`scripts/build.sh`）。若 API 面扩大到这个交易不划算，换 kotlinx-serialization 是改一个包。
 
 TTS worker 无论如何是 Python——模型是 PyTorch 的。这是个多语言系统，不存在"统一技术栈"的纯洁性收益。
 
 **移植时做了一处交叉验证**：把 Go 版实测的三个频谱截止值（19969 / 8016 / 3492 Hz）钉进 Kotlin 测试断言。这在移植过程中抓到了一个真实缺陷——参考电平计算混用了原始谱和平滑谱，会让阈值偏移平滑量。这类静默数值漂移不会让任何测试变红，除非有人钉住具体数字。
+
+---
+
+## D-014 上行链路必须无损，下行用 Opus
+
+**上行（家长录音 → 服务端）：WAV / FLAC，绝不用有损编码。**
+
+Opus 在低码率下会主动限带（16kbps 落到 8kHz）。而 audioqc 判断一条录音能否用于克隆，
+靠的正是频谱在哪里停止。如果客户端上传前先压一遍，门禁看到的是**编解码器的低通**而不是麦克风的——
+真 48kHz 的干净录音会被判成「设备在上采样」，全军覆没。
+
+同样的原因，安卓端必须用 `AudioRecord` 拿原始 PCM，不能用 `MediaRecorder`
+（后者写出 AAC/AMR，每一种都限带）。浏览器端同理：不能用 `MediaRecorder`，
+要用 AudioWorklet 抓 Float32 自己封 WAV。
+
+这条极易被后人当作「优化流量」删掉，因为删掉之后**没有任何测试会变红**——
+症状是通过率莫名下降，而且会被归咎于模型或阈值。
+
+**下行（合成好的故事 → 孩子平板）：Opus，32–48kbps 单声道。** 免专利费，安卓原生支持，
+对移工家庭的网络和流量友好。这一侧没有频谱分析，有损完全合适。
+
+顺带：H.266/VVC 之类是**视频**编解码器，这个产品全程没有视频，与它无关。
 
 ---
 
