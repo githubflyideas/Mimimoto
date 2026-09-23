@@ -1,0 +1,60 @@
+name: pages
+
+# Publishes web/ to GitHub Pages.
+#
+# This is what a parent actually opens. It has to be HTTPS on a real origin:
+# getUserMedia is refused over plain HTTP and inside a sandboxed frame, so a
+# local file or a preview iframe cannot record at all. Pages gives HTTPS for
+# free, which is the whole reason it is here rather than anywhere fancier.
+#
+# Enable once in the repository: Settings → Pages → Source → GitHub Actions.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'web/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# A half-finished deploy is worse than a stale one: let a run finish rather
+# than cancelling it partway.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the shell is complete
+        # The service worker names the files it caches; a rename that misses one
+        # ships an app that half-works offline, and nothing else would catch it.
+        run: |
+          cd web
+          missing=0
+          for f in index.html audioqc.js recorder.js capture-worklet.js \
+                   manifest.webmanifest icon-180.png icon-192.png icon-512.png; do
+            [ -f "$f" ] || { echo "missing: $f"; missing=1; }
+          done
+          exit $missing
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+
+      - id: deploy
+        uses: actions/deploy-pages@v4

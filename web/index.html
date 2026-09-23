@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>mimimoto · 录音</title>
+<meta name="description" content="录一条，看它能不能用来克隆声音。">
+
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#FAF7F2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="mimimoto">
+<link rel="apple-touch-icon" href="./icon-180.png">
+<link rel="icon" href="./icon-192.png">
+
+<style>
+  :root {
+    --cream: #FAF7F2;
+    --surface: #FFFFFF;
+    --ink: #2A2520;
+    --muted: #6B6157;
+    --faint: #8A7F72;
+    --hairline: #E7DFD3;
+    --sand: #F7F2EA;
+    --lamp: #E8A33D;
+    --clay: #C4644B;
+    --clay-ink: #A94F38;
+    --moss: #5B7B5A;
+    color-scheme: light;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; }
+  body {
+    background: var(--cream);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "PingFang SC", "Hiragino Sans", "Noto Sans SC", sans-serif;
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 480px; margin: 0 auto;
+    padding-inline: 20px;
+    padding-block: calc(env(safe-area-inset-top, 0px) + 36px) calc(env(safe-area-inset-bottom, 0px) + 48px);
+  }
+
+  h1 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.01em; }
+  .lede { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
+
+  .stage {
+    margin-block: 40px 8px;
+    display: flex; flex-direction: column; align-items: center; gap: 16px;
+  }
+
+  #rec {
+    width: 188px; height: 188px; border-radius: 50%;
+    border: none; background: var(--lamp); color: var(--ink);
+    font: inherit; font-size: 18px; font-weight: 700;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+    box-shadow: 0 10px 28px rgba(232, 163, 61, 0.32);
+    cursor: pointer; touch-action: none; user-select: none;
+    transition: transform .08s ease, background .15s ease;
+  }
+  #rec[data-state="recording"] { background: var(--clay); color: var(--cream); }
+  #rec[disabled] { background: var(--hairline); color: var(--faint); box-shadow: none; cursor: default; }
+  #rec:focus-visible { outline: 3px solid var(--clay-ink); outline-offset: 4px; }
+  #rec svg { display: block; }
+
+  .hint { color: var(--muted); font-size: 14px; text-align: center; min-height: 1.65em; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--hairline);
+    border-radius: 18px; overflow: hidden; margin-top: 14px;
+  }
+  .card-head {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 15px 18px; border-bottom: 1px solid var(--hairline);
+  }
+  .verdict { font-size: 17px; font-weight: 700; flex-grow: 1; }
+  .verdict.pass { color: var(--moss); }
+  .verdict.warn { color: var(--clay-ink); }
+  .verdict.fail { color: var(--clay-ink); }
+  .stamp { font-size: 13px; color: var(--faint); }
+
+  canvas.plot { display: block; width: 100%; height: 140px; background: var(--sand); }
+
+  dl.readout {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+    margin: 0; border-top: 1px solid var(--hairline);
+  }
+  .readout > div { padding: 10px 14px; border-right: 1px solid var(--hairline); }
+  .readout > div:last-child { border-right: none; }
+  .readout dt { margin: 0; font-size: 11px; letter-spacing: .06em; color: var(--faint); }
+  .readout dd {
+    margin: 2px 0 0; font-size: 17px; font-variant-numeric: tabular-nums; font-weight: 500;
+  }
+  .readout dd small { font-size: 11px; color: var(--faint); font-weight: 400; }
+
+  .advice { padding: 14px 18px; border-top: 1px solid var(--hairline); font-size: 15px; }
+  .advice .fix { color: var(--muted); }
+
+  .grants { padding: 12px 18px; border-top: 1px solid var(--hairline); font-size: 13px; color: var(--muted); }
+  .grants b { color: var(--ink); font-weight: 500; }
+
+  .actions { padding: 12px 18px; border-top: 1px solid var(--hairline); display: flex; gap: 10px; }
+  .btn {
+    font: inherit; font-size: 14px; cursor: pointer;
+    padding: 10px 16px; min-height: 44px; border-radius: 22px;
+    border: 1px solid var(--hairline); background: var(--cream); color: var(--ink);
+    text-decoration: none; display: inline-flex; align-items: center;
+  }
+  .btn:active { background: var(--sand); }
+
+  .note {
+    margin-top: 32px; border-left: 2px solid var(--hairline); padding: 2px 0 2px 14px;
+    color: var(--muted); font-size: 14px;
+  }
+  .note p { margin: 0 0 10px; }
+  .note p:last-child { margin: 0; }
+  .note b { color: var(--ink); font-weight: 500; }
+
+  .fail-msg { color: var(--clay-ink); font-size: 14px; margin-top: 12px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>录一条试试</h1>
+  <p class="lede">按住说一句话，看它能不能用来克隆你的声音。判断用的是服务端同一套算法。</p>
+
+  <div class="stage">
+    <button id="rec" type="button" aria-label="按住录音">
+      <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="9" y="2" width="6" height="12" rx="3"></rect>
+        <path d="M5 10v1a7 7 0 0 0 14 0v-1"></path>
+        <path d="M12 19v3"></path>
+      </svg>
+      <span id="reclabel">按住</span>
+    </button>
+    <div class="hint" id="hint">松开就出结果</div>
+  </div>
+
+  <div id="results"></div>
+
+  <div class="note">
+    <p><b>为什么看频谱截止。</b>设备声称的采样率经常是假的——安卓 HAL 把 16kHz 上采样成 48kHz 是常态，文件头照写 48000，但 8kHz 以上什么都没有。拿这种音频去克隆，出来的声音「几乎像」，而孩子比成年人更早察觉不对。</p>
+    <p><b>这一版不联网。</b>录音留在这台设备上，可以逐条下载下来存档。</p>
+    <p><b>浏览器的限制。</b>iOS 不让网页选「未处理」采集源，系统降噪绕不掉——下面那行「浏览器实际给的」就是告诉你这次拿到了什么。原生 App 能绕，网页不能。</p>
+  </div>
+
+</div>
+
+<script type="module">
+import { judge, PROFILES, encodeWav } from './audioqc.js';
+import { Recorder } from './recorder.js';
+
+const recBtn = document.getElementById('rec');
+const recLabel = document.getElementById('reclabel');
+const hint = document.getElementById('hint');
+const results = document.getElementById('results');
+
+const recorder = new Recorder();
+let busy = false;
+
+const MESSAGES = {
+  too_short:       { title: '再说长一点',          fix: '一句完整的话就够，大概三五秒。' },
+  low_sample_rate: { title: '这台设备的采样率太低', fix: '换一台设备，或检查浏览器的麦克风设置。' },
+  noisy:           { title: '背景有点吵',          fix: '找个安静的地方，关掉风扇和电视。' },
+  band_limited:    { title: '高音被切掉了',        fix: '别在通话中录，也别用蓝牙耳机——蓝牙的通话模式会把频带砍到 8kHz 以下。' },
+  clipping:        { title: '声音录爆了',          fix: '手机离嘴一拳远就好，不用贴着。' },
+  dc_offset:       { title: '采集链路有点异常',    fix: '重新载入页面再试。' },
+  mostly_silence:  { title: '大部分是空白',        fix: '按住之后直接说，别等。' },
+  no_speech:       { title: '没听到说话',          fix: '检查一下麦克风有没有被挡住或被占用。' },
+};
+
+// Press and hold. Pointer events cover mouse, touch and pencil in one path;
+// the capture keeps the release ours even if the finger slides off the button.
+recBtn.addEventListener('pointerdown', async (e) => {
+  e.preventDefault();
+  if (busy || recorder.running) return;
+  busy = true;
+  recBtn.setPointerCapture(e.pointerId);
+
+  try {
+    await recorder.start((peak) => {
+      recBtn.style.transform = `scale(${(1 + peak * 0.12).toFixed(3)})`;
+    });
+    recBtn.dataset.state = 'recording';
+    recLabel.textContent = '在听';
+    hint.textContent = '松开结束';
+  } catch (err) {
+    hint.textContent = '';
+    showError(err && err.name === 'NotAllowedError'
+      ? '麦克风被拒绝了。在浏览器设置里允许这个网站使用麦克风，然后重新载入。'
+      : `打不开麦克风：${err && err.message ? err.message : err}`);
+  } finally {
+    busy = false;
+  }
+});
+
+for (const type of ['pointerup', 'pointercancel']) {
+  recBtn.addEventListener(type, async () => {
+    if (!recorder.running) return;
+    recBtn.dataset.state = '';
+    recBtn.style.transform = '';
+    recLabel.textContent = '按住';
+    hint.textContent = '分析中…';
+
+    const take = await recorder.stop();
+    hint.textContent = '松开就出结果';
+
+    if (take.samples.length === 0) {
+      showError('没录到东西，再按住久一点。');
+      return;
+    }
+    const report = judge(take, PROFILES.daily);
+    showResult(report, take);
+  });
+}
+
+function showError(text) {
+  const p = document.createElement('p');
+  p.className = 'fail-msg';
+  p.textContent = text;
+  results.prepend(p);
+}
+
+function showResult(report, take) {
+  const kind = !report.passed ? 'fail' : report.warnings.length ? 'warn' : 'pass';
+  const worst = report.failures[0] || report.warnings[0] || null;
+
+  const card = document.createElement('div');
+  card.className = 'card';
+
+  const head = document.createElement('div');
+  head.className = 'card-head';
+  const verdict = document.createElement('div');
+  verdict.className = `verdict ${kind}`;
+  verdict.textContent = kind === 'fail' ? '不能用' : kind === 'warn' ? '勉强可用' : '可以用';
+  const stamp = document.createElement('div');
+  stamp.className = 'stamp';
+  stamp.textContent = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+  head.append(verdict, stamp);
+
+  const canvas = document.createElement('canvas');
+  canvas.className = 'plot';
+  canvas.setAttribute('role', 'img');
+  canvas.setAttribute('aria-label', `频谱曲线，内容在 ${Math.round(report.cutoffHz)} 赫兹处停止`);
+
+  const readout = document.createElement('dl');
+  readout.className = 'readout';
+  for (const [label, value, unit] of [
+    ['截止', Math.round(report.cutoffHz), 'Hz'],
+    ['信噪比', report.snrDb.toFixed(1), 'dB'],
+    ['采样率', (report.sampleRate / 1000).toFixed(1), 'kHz'],
+    ['语音', report.speechSeconds.toFixed(1), 's'],
+  ]) {
+    const cell = document.createElement('div');
+    const dt = document.createElement('dt'); dt.textContent = label;
+    const dd = document.createElement('dd'); dd.textContent = String(value);
+    const u = document.createElement('small'); u.textContent = ' ' + unit;
+    dd.append(u); cell.append(dt, dd); readout.append(cell);
+  }
+
+  card.append(head, canvas, readout);
+
+  if (worst) {
+    const msg = MESSAGES[worst.code] || { title: worst.code, fix: '' };
+    const advice = document.createElement('div');
+    advice.className = 'advice';
+    const b = document.createElement('b'); b.textContent = msg.title;
+    const fix = document.createElement('span'); fix.className = 'fix'; fix.textContent = ' — ' + msg.fix;
+    advice.append(b, fix);
+    card.append(advice);
+  }
+
+  // What the browser granted, which is often not what was asked for.
+  const s = take.settings || {};
+  const grants = document.createElement('div');
+  grants.className = 'grants';
+  const on = (v) => v === true ? '开' : v === false ? '关' : '未报告';
+  grants.innerHTML = '浏览器实际给的：降噪 <b>' + on(s.noiseSuppression) +
+    '</b> · 回声消除 <b>' + on(s.echoCancellation) +
+    '</b> · 自动增益 <b>' + on(s.autoGainControl) + '</b>';
+  card.append(grants);
+
+  const actions = document.createElement('div');
+  actions.className = 'actions';
+  const dl = document.createElement('a');
+  dl.className = 'btn';
+  dl.textContent = '下载这条 WAV';
+  const blob = new Blob([encodeWav(take.samples, take.sampleRate)], { type: 'audio/wav' });
+  dl.href = URL.createObjectURL(blob);
+  dl.download = `take-${Date.now()}-${Math.round(report.cutoffHz)}Hz.wav`;
+  actions.append(dl);
+  card.append(actions);
+
+  results.prepend(card);
+  requestAnimationFrame(() => drawSpectrum(canvas, report));
+}
+
+function drawSpectrum(canvas, report) {
+  const spec = report.spectrum;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+  const g = canvas.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, w, h);
+  if (!spec) return;
+
+  const padL = 6, padR = 6, padT = 12, padB = 22;
+  const plotW = w - padL - padR, plotH = h - padT - padB;
+  if (plotW <= 0 || plotH <= 0) return;
+
+  const nyquist = report.sampleRate / 2;
+  const top = spec.ref + 6, bottom = spec.ref - 96;
+  const x = (hz) => padL + (hz / nyquist) * plotW;
+  const y = (db) => padT + (1 - (db - bottom) / (top - bottom)) * plotH;
+
+  g.strokeStyle = 'rgba(138,127,114,0.22)'; g.lineWidth = 1;
+  g.fillStyle = '#8A7F72'; g.font = '10px system-ui, sans-serif'; g.textAlign = 'center';
+  for (let hz = 4000; hz < nyquist; hz += 4000) {
+    const px = Math.round(x(hz)) + 0.5;
+    g.beginPath(); g.moveTo(px, padT); g.lineTo(px, padT + plotH); g.stroke();
+    g.fillText(`${hz / 1000}k`, px, h - 7);
+  }
+
+  g.beginPath();
+  g.moveTo(padL, padT + plotH);
+  for (let i = 0; i < spec.curve.length; i++) {
+    g.lineTo(x(i * spec.binHz), y(Math.max(Math.min(spec.curve[i], top), bottom)));
+  }
+  g.lineTo(padL + plotW, padT + plotH);
+  g.closePath();
+  g.globalAlpha = 0.18; g.fillStyle = '#C4644B'; g.fill(); g.globalAlpha = 1;
+
+  g.beginPath();
+  for (let i = 0; i < spec.curve.length; i++) {
+    const px = x(i * spec.binHz), py = y(Math.max(Math.min(spec.curve[i], top), bottom));
+    i === 0 ? g.moveTo(px, py) : g.lineTo(px, py);
+  }
+  g.strokeStyle = '#C4644B'; g.lineWidth = 1.5; g.stroke();
+
+  if (report.cutoffHz > 0) {
+    const cx = Math.round(x(report.cutoffHz)) + 0.5;
+    const colour = report.cutoffHz < 7000 ? '#A94F38' : report.cutoffHz < 10000 ? '#E8A33D' : '#5B7B5A';
+    g.strokeStyle = colour; g.lineWidth = 1.5;
+    g.beginPath(); g.moveTo(cx, padT); g.lineTo(cx, padT + plotH); g.stroke();
+    const label = `${Math.round(report.cutoffHz)} Hz`;
+    g.font = '600 11px system-ui, sans-serif';
+    const flip = cx + g.measureText(label).width + 12 > padL + plotW;
+    g.fillStyle = colour; g.textAlign = flip ? 'right' : 'left';
+    g.fillText(label, flip ? cx - 5 : cx + 5, padT + 10);
+  }
+}
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>

@@ -35,6 +35,7 @@
 | `core/json` | ✅ 内置最小实现，6 项测试 |
 | `server/httpapi` | ⚠️ 仅覆盖已存在的流程，8 项集成测试（真实 socket） |
 | `server/store` | ⚠️ 内存实现。存储形态是未决问题，见 DECISIONS |
+| `web/` | ✅ Safari/Chrome 可装的 Web App。录音→门禁→判决，离线可用 |
 | `android/` | ⚠️ 录音+门禁跑通，界面是最小实现。`PcmRecorder` 已对桩编译验证，其余靠 CI |
 | `worker/` | ⚠️ 骨架，未在 GPU 上验证过 |
 | iOS | ❌ 未开始，见 docs/RELEASING.md |
@@ -98,6 +99,20 @@ dad.wav                                  FAIL
 
 `Plan.startGenerationAt` 是 GPU 队列的全部调度策略：按它排序即可。
 12 语言 × 全球时区意味着睡前高峰在 UTC 上滚动一整圈，按 deadline 排序会自动填谷。
+
+## 手机上跑（最快的一条）
+
+`web/` 是一个可以「添加到主屏幕」的 Web App，iPhone 和安卓都能用，不需要 Mac、
+不需要开发者账号、不需要装任何东西。推一次代码，GitHub Pages 自动部署
+（仓库里开一次：Settings → Pages → Source → GitHub Actions）。
+
+用的是同一份 `audioqc.js`，跟 Kotlin 服务端逐项对过数（19969 / 8016 / 3492 Hz）。
+
+**它能做的**：按住录音 → 拿到未压缩 PCM（AudioWorklet，不是 `MediaRecorder`，理由见
+D-014）→ 当场出判决和频谱图 → 逐条下载 WAV 存档。离线可用，不联网。
+
+**它做不到的**：iOS 不让网页选「未处理」采集源，系统降噪绕不掉。界面上那行
+「浏览器实际给的」就是告诉你这次到底拿到了什么——原生 App 能绕，网页不能。
 
 ## 拿到 APK
 
