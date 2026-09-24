@@ -22,7 +22,11 @@ dependencyResolutionManagement {
 
 rootProject.name = "mimimoto"
 
-include(":core", ":server")
+// `:testkit` is the in-repo test runner, depended on only as `testImplementation`.
+// It is a module of its own so that every module can test its own `internal`
+// declarations: Kotlin gives a test source set friend access to its own module
+// and no other, so a shared harness cannot live inside one of them.
+include(":core", ":server", ":testkit")
 
 // The Android app joins the build only where an SDK exists, so the server side
 // still builds — and its tests still run — on a machine or CI job with no

@@ -5,6 +5,7 @@ plugins {
 
 dependencies {
     implementation(project(":core"))
+    testImplementation(project(":testkit"))
 }
 
 kotlin { jvmToolchain(17) }

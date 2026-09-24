@@ -28,7 +28,7 @@
 
 | 模块 | 状态 |
 |---|---|
-| `core/audioqc` | ✅ 完整，15 项测试。纯 Kotlin，服务端与 App 共用同一份 |
+| `core/audioqc` | ✅ 完整，17 项测试（2 项在 core 自己的套件里）。纯 Kotlin，服务端与 App 共用同一份 |
 | `server/schedule` | ✅ 完整，20 项测试。6 时区整年 DST 遍历 |
 | `server/pipeline` | ✅ 完整，12 项测试 |
 | `server/tts` | ✅ 接口 + CosyVoice 2 客户端 + mock |
@@ -125,11 +125,15 @@ IPA 需要 macOS + Xcode + 你自己的 Apple 开发者证书，而且还需要�
 ## 构建
 
 ```console
-$ ./gradlew :server:suite                                  # 测试套件
+$ ./gradlew :core:suite :server:suite                      # 测试套件
 $ ./gradlew :server:qc -Pargs="--json recordings/*.wav"    # 质量门禁
 $ ./gradlew :server:run                                    # 服务
 $ ./gradlew :android:assembleDebug                         # APK（需 Android SDK）
 ```
+
+两个套件是分开的：每个模块测自己的 `internal`，因为 Kotlin 只给同模块的测试源集
+friend 权限。`:testkit` 是共用的测试 runner，只以 `testImplementation` 被依赖，
+不进服务端产物也不进 APK。理由见 D-016。
 
 没有 Android SDK 的机器上 `:android` 会被自动跳过，服务端照常构建。
 
@@ -138,6 +142,10 @@ $ ./gradlew :android:assembleDebug                         # APK（需 Android S
 ```console
 $ KOTLINC=/path/to/kotlinc/bin/kotlinc ./scripts/build.sh
 ```
+
+这个脚本**分模块编译**，friend path 只指向模块自己，所以它和 Gradle 对模块边界的判断一致。
+早先的版本把 core 和 server 编进同一个目录，`internal` 在那条路上等于不存在——全绿，
+推上 CI 立刻红。D-016 记的就是这件事。
 
 TTS worker 需要 GPU 和 CosyVoice 2，装法见 `worker/requirements.txt` 顶部。
 

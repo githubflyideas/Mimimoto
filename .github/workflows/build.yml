@@ -29,10 +29,14 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      # The server side first: it is where the logic lives, and a red suite
-      # should stop the APK before anyone installs it.
-      - name: Server suite
-        run: ./gradlew :server:suite
+      # Both suites, in one invocation so a failure in either is reported
+      # rather than the first one masking the second. Each module tests its own
+      # `internal` declarations — that is why :core has a suite of its own and
+      # not a folder of tests inside :server.
+      #
+      # A red suite stops the APK before anyone installs it.
+      - name: Test suites
+        run: ./gradlew :core:suite :server:suite --continue
 
       # ANDROID_HOME is set on this runner, so settings.gradle.kts includes
       # :android. On a machine without an SDK the module is skipped and the

@@ -5,6 +5,17 @@
  * kotlinc — which matters on any build host that cannot reach Maven. The
  * assertion names match kotlin.test, so moving to JUnit later is deleting this
  * file and adding a dependency, not rewriting the tests.
+ *
+ * It is its own module so that every module can test its own `internal`
+ * declarations. Kotlin grants a test source set friend access to its OWN
+ * module's internals and nothing else, so a test living in `:server` cannot
+ * reach into `:core` — which is correct, and which is why the FFT tests sit in
+ * `:core` rather than here. Sharing this harness through a third module keeps
+ * that boundary intact; the alternative, widening `core`'s API until the tests
+ * compile, would let the test tail wag the module dog.
+ *
+ * Nothing but tests may depend on this module: it is `testImplementation`
+ * everywhere, so it never reaches a server artifact or the APK.
  */
 package mimimoto
 

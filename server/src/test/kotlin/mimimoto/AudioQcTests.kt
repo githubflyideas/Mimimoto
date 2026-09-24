@@ -254,44 +254,6 @@ fun audioQcTests() = Suite.group("audioqc") {
         assertNear(8_016.0, upsampled.cutoffHz, 400.0, "upsampled cutoff")
         assertNear(3_492.0, phone.cutoffHz, 300.0, "telephony cutoff")
     }
-
-    // ---- FFT ----
-
-    Suite.test("FFT matches a naive DFT") {
-        val n = 64
-        val rng = Random(7)
-        val src = DoubleArray(n) { rng.nextGaussian() }
-        val wantRe = DoubleArray(n)
-        val wantIm = DoubleArray(n)
-        for (k in 0 until n) for (t in 0 until n) {
-            val ang = -2 * PI * k * t / n
-            wantRe[k] += src[t] * kotlin.math.cos(ang)
-            wantIm[k] += src[t] * sin(ang)
-        }
-        val re = src.copyOf()
-        val im = DoubleArray(n)
-        fftRadix2(re, im)
-        for (k in 0 until n) {
-            assertTrue(abs(re[k] - wantRe[k]) < 1e-9, "bin $k real: ${re[k]} vs ${wantRe[k]}")
-            assertTrue(abs(im[k] - wantIm[k]) < 1e-9, "bin $k imag: ${im[k]} vs ${wantIm[k]}")
-        }
-    }
-
-    Suite.test("FFT locates a tone") {
-        val n = 1024
-        val rate = 48_000.0
-        val tone = 3_000.0
-        val re = DoubleArray(n) { sin(2 * PI * tone * it / rate) }
-        val im = DoubleArray(n)
-        fftRadix2(re, im)
-        var peak = 0
-        var peakMag = 0.0
-        for (i in 1 until n / 2) {
-            val m = kotlin.math.hypot(re[i], im[i])
-            if (m > peakMag) { peak = i; peakMag = m }
-        }
-        assertNear(tone, peak * rate / n, rate / n, "tone location")
-    }
 }
 
 // Shared fixtures for the integration tests: the two cases that decide whether
